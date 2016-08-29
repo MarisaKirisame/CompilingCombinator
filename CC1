@@ -14,14 +14,6 @@ class SKI r where
     k :: r (a -> b -> a)
     i :: r (a -> a)
 
-newtype SKITerm a = SKITerm { unSKITerm :: forall r. SKI r => r a }
-
-instance SKI SKITerm where
-    app f x = SKITerm $ app (unSKITerm f) (unSKITerm x)
-    s = SKITerm s
-    k = SKITerm k
-    i = SKITerm i
-
 newtype ShowTerm x = ShowTerm { showTerm :: String }
 
 instance SKI ShowTerm where
@@ -50,11 +42,11 @@ lam :: SKI r =>
   (forall t. r t -> rn t) -> rn a -> rn b) -> r (a -> b)
 lam f = unNext $ f Fast (Slow i)
 
-c :: SKITerm ((a -> b -> c) -> b -> a -> c)
+c :: SKI r => r ((a -> b -> c) -> b -> a -> c)
 c = lam (\withabc abc ->
         lam (\withb b ->
             lam (\witha a ->
                 app (app (witha $ withb abc) a) $ witha b)))
 
 main :: IO ()
-main = putStrLn $ showTerm $ unSKITerm c
+main = putStrLn $ showTerm c
