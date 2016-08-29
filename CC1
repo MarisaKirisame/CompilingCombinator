@@ -14,21 +14,21 @@ class SKI r where
     k :: r (a -> b -> a)
     i :: r (a -> a)
 
-newtype Term a = Term { unTerm :: forall r. SKI r => r a }
+newtype SKITerm a = SKITerm { unSKITerm :: forall r. SKI r => r a }
 
-instance SKI Term where
-    app f x = Term $ app (unTerm f) (unTerm x)
-    s = Term s
-    k = Term k
-    i = Term i
+instance SKI SKITerm where
+    app f x = SKITerm $ app (unSKITerm f) (unSKITerm x)
+    s = SKITerm s
+    k = SKITerm k
+    i = SKITerm i
 
-newtype ShowSKI x = ShowSKI { showSKI :: String }
+newtype ShowTerm x = ShowTerm { showTerm :: String }
 
-instance SKI ShowSKI where
-    app f x = ShowSKI $ "(" ++ showSKI f ++ " " ++ showSKI x ++ ")"
-    s = ShowSKI "S"
-    k = ShowSKI "K"
-    i = ShowSKI "I"
+instance SKI ShowTerm where
+    app f x = ShowTerm $ "(" ++ showTerm f ++ " " ++ showTerm x ++ ")"
+    s = ShowTerm "S"
+    k = ShowTerm "K"
+    i = ShowTerm "I"
 
 data Next repr a b = Fast (repr b) | Slow (repr (a -> b))
 
@@ -50,11 +50,11 @@ lam :: SKI r =>
   (forall t. r t -> rn t) -> rn a -> rn b) -> r (a -> b)
 lam f = unNext $ f Fast (Slow i)
 
-c :: Term ((a -> b -> c) -> b -> a -> c)
+c :: SKITerm ((a -> b -> c) -> b -> a -> c)
 c = lam (\withabc abc ->
         lam (\withb b ->
             lam (\witha a ->
                 app (app (witha $ withb abc) a) $ witha b)))
 
 main :: IO ()
-main = putStrLn $ showSKI $ unTerm c
+main = putStrLn $ showTerm $ unSKITerm c
