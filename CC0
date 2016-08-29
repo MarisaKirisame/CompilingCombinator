@@ -24,21 +24,20 @@ instance SKI ShowTerm where
 
 newtype Next repr a b = Next { unNext :: repr (a -> b) }
 
+conv :: SKI repr => repr a -> Next repr b a
+conv = Next . app k
+
 instance SKI repr => SKI (Next repr a) where
     app f x = Next $ app (app s $ unNext f) $ unNext x
     s = Next $ app k s
     k = Next $ app k k
     i = Next $ app k i
 
-lam :: SKI r =>
- (forall rn. SKI rn =>
-  (forall t. r t -> rn t) -> rn a -> rn b) -> r (a -> b)
-lam f = unNext $ f (Next . app k) (Next i)
+lam :: SKI repr => (Next repr a a -> Next repr a b) -> repr (a -> b)
+lam f = unNext $ f (Next i)
 
 c :: SKI r => r ((a -> b -> c) -> b -> a -> c)
-c = lam (\withabc abc -> 
-        lam (\withb b -> lam (\witha a ->
-            app (app (witha $ withb abc) a) $ witha b)))
+c = lam (\abc -> lam (\b -> lam (\a -> app (app (conv $ conv abc) a) $ conv b)))
 
 main :: IO ()
 main = putStrLn $ showTerm c
