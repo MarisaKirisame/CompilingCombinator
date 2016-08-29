@@ -29,9 +29,9 @@ conv = Next . app k
 
 instance SKI repr => SKI (Next repr a) where
     app f x = Next $ app (app s $ unNext f) $ unNext x
-    s = Next $ app k s
-    k = Next $ app k k
-    i = Next $ app k i
+    s = conv s
+    k = conv k
+    i = conv i
 
 lam :: SKI repr => (Next repr a a -> Next repr a b) -> repr (a -> b)
 lam f = unNext $ f (Next i)
