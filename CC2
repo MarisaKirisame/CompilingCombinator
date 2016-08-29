@@ -18,25 +18,6 @@ class A r where
     int :: Int -> r Int
     add :: r (Int -> Int -> Int)
 
-newtype SKITerm a = SKITerm { unSKITerm :: forall r. SKI r => r a }
-newtype ATerm a = ATerm { unATerm :: forall r. SKI r => A r => r a }
-
-instance SKI ATerm where
-    app f x = ATerm $ app (unATerm f) (unATerm x)
-    s = ATerm s
-    k = ATerm k
-    i = ATerm i
-
-instance A ATerm where
-    int x = ATerm $ int x
-    add = ATerm add
-
-instance SKI SKITerm where
-    app f x = SKITerm $ app (unSKITerm f) (unSKITerm x)
-    s = SKITerm s
-    k = SKITerm k
-    i = SKITerm i
-
 newtype ShowTerm x = ShowTerm { showTerm :: String }
 
 instance SKI ShowTerm where
@@ -84,14 +65,11 @@ lam :: forall r a b. SKI r =>
  ((forall k. NT (Next r a) k => k a) -> (Next r a) b) -> r (a -> b)
 lam f = unNext $ f (conv (Slow i :: Next r a a))
 
-c :: SKITerm ((a -> b -> c) -> b -> a -> c)
+c :: SKI r => r ((a -> b -> c) -> b -> a -> c)
 c = lam (\abc -> lam (\b -> lam (\a -> app (app abc a) b)))
 
-double :: ATerm (Int -> Int)
+double :: SKI r => A r => r (Int -> Int)
 double = lam (\i -> app (app add i) i)
 
-kdouble :: ATerm (String -> Int -> Int)
-kdouble = lam (\str -> unATerm double)
-
 main :: IO ()
-main = putStrLn $ showTerm $ unATerm double
+main = putStrLn $ showTerm double
