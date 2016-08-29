@@ -1,0 +1,97 @@
+{-# LANGUAGE
+    MultiParamTypeClasses,
+    RankNTypes,
+    ScopedTypeVariables,
+    FlexibleInstances,
+    FlexibleContexts,
+    UndecidableInstances,
+    IncoherentInstances,
+    PolyKinds #-}
+
+class SKI r where
+    app :: r (a -> b) -> r a -> r b
+    s :: r ((a -> b -> c) -> (a -> b) -> a -> c)
+    k :: r (a -> b -> a)
+    i :: r (a -> a)
+
+class A r where
+    int :: Int -> r Int
+    add :: r (Int -> Int -> Int)
+
+newtype SKITerm a = SKITerm { unSKITerm :: forall r. SKI r => r a }
+newtype ATerm a = ATerm { unATerm :: forall r. SKI r => A r => r a }
+
+instance SKI ATerm where
+    app f x = ATerm $ app (unATerm f) (unATerm x)
+    s = ATerm s
+    k = ATerm k
+    i = ATerm i
+
+instance A ATerm where
+    int x = ATerm $ int x
+    add = ATerm add
+
+instance SKI SKITerm where
+    app f x = SKITerm $ app (unSKITerm f) (unSKITerm x)
+    s = SKITerm s
+    k = SKITerm k
+    i = SKITerm i
+
+newtype ShowTerm x = ShowTerm { showTerm :: String }
+
+instance SKI ShowTerm where
+    app f x = ShowTerm $ "(" ++ showTerm f ++ " " ++ showTerm x ++ ")"
+    s = ShowTerm "S"
+    k = ShowTerm "K"
+    i = ShowTerm "I"
+
+instance A ShowTerm where
+    int x = ShowTerm $ show x
+    add = ShowTerm "add"
+
+data Next repr a b = Fast (repr b) | Slow (repr (a -> b))
+
+unNext :: SKI repr => Next repr a b -> repr (a -> b)
+unNext (Slow x) = x
+unNext (Fast x) = app k x
+
+instance SKI repr => SKI (Next repr a) where
+    app (Fast f) (Fast x) = Fast $ app f x
+    app (Slow f) (Slow x) = Slow $ app (app s f) x
+    app (Slow f) (Fast x) = app (Slow f) (Slow $ app k x)
+    app (Fast f) (Slow x) = app (Slow $ app k f) (Slow x)
+    s = Fast s
+    k = Fast k
+    i = Fast i
+
+instance A repr => A (Next repr a) where
+    int x = Fast (int x)
+    add = Fast add
+
+class NT l r where
+    conv :: l t -> r t
+
+instance NT r (Next r a) where
+    conv = Fast
+
+instance NT l r => NT l (Next r a) where
+    conv = Fast . conv
+
+instance NT x x where
+    conv = id
+
+lam :: forall r a b. SKI r =>
+ ((forall k. NT (Next r a) k => k a) -> (Next r a) b) -> r (a -> b)
+lam f = unNext $ f (conv (Slow i :: Next r a a))
+
+c :: SKITerm ((a -> b -> c) -> b -> a -> c)
+c = lam (\abc -> lam (\b -> lam (\a -> app (app abc a) b)))
+
+double :: ATerm (Int -> Int)
+double = lam (\i -> app (app add i) i)
+
+kdouble :: ATerm (String -> Int -> Int)
+kdouble = lam (\str -> unATerm double)
+
+main :: IO ()
+main = putStrLn $ showTerm $ unATerm double
