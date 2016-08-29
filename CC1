@@ -1,0 +1,60 @@
+{-# LANGUAGE
+    MultiParamTypeClasses,
+    RankNTypes,
+    ScopedTypeVariables,
+    FlexibleInstances,
+    FlexibleContexts,
+    UndecidableInstances,
+    IncoherentInstances,
+    PolyKinds #-}
+
+class SKI r where
+    app :: r (a -> b) -> r a -> r b
+    s :: r ((a -> b -> c) -> (a -> b) -> a -> c)
+    k :: r (a -> b -> a)
+    i :: r (a -> a)
+
+newtype Term a = Term { unTerm :: forall r. SKI r => r a }
+
+instance SKI Term where
+    app f x = Term $ app (unTerm f) (unTerm x)
+    s = Term s
+    k = Term k
+    i = Term i
+
+newtype ShowSKI x = ShowSKI { showSKI :: String }
+
+instance SKI ShowSKI where
+    app f x = ShowSKI $ "(" ++ showSKI f ++ " " ++ showSKI x ++ ")"
+    s = ShowSKI "S"
+    k = ShowSKI "K"
+    i = ShowSKI "I"
+
+data Next repr a b = Fast (repr b) | Slow (repr (a -> b))
+
+unNext :: SKI repr => Next repr a b -> repr (a -> b)
+unNext (Slow x) = x
+unNext (Fast x) = app k x
+
+instance SKI repr => SKI (Next repr a) where
+    app (Fast f) (Fast x) = Fast $ app f x
+    app (Slow f) (Slow x) = Slow $ app (app s f) x
+    app (Slow f) (Fast x) = app (Slow f) (Slow $ app k x)
+    app (Fast f) (Slow x) = app (Slow $ app k f) (Slow x)
+    s = Fast s
+    k = Fast k
+    i = Fast i
+
+lam :: SKI r =>
+ (forall rn. SKI rn =>
+  (forall t. r t -> rn t) -> rn a -> rn b) -> r (a -> b)
+lam f = unNext $ f Fast (Slow i)
+
+c :: Term ((a -> b -> c) -> b -> a -> c)
+c = lam (\withabc abc ->
+        lam (\withb b ->
+            lam (\witha a ->
+                app (app (witha $ withb abc) a) $ witha b)))
+
+main :: IO ()
+main = putStrLn $ showSKI $ unTerm c
