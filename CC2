@@ -14,7 +14,7 @@ class SKI r where
     k :: r (a -> b -> a)
     i :: r (a -> a)
 
-class A r where
+class Arith r where
     int :: Int -> r Int
     add :: r (Int -> Int -> Int)
 
@@ -26,9 +26,21 @@ instance SKI ShowTerm where
     k = ShowTerm "K"
     i = ShowTerm "I"
 
-instance A ShowTerm where
+instance Arith ShowTerm where
     int x = ShowTerm $ show x
     add = ShowTerm "add"
+
+newtype Eval x = Eval { eval :: x }
+
+instance SKI Eval where
+    app f x = Eval $ eval f $ eval x
+    s = Eval (\abc ab a -> abc a (ab a))
+    k = Eval const
+    i = Eval id
+
+instance Arith Eval where
+    int = Eval
+    add = undefined
 
 data Next repr a b = Fast (repr b) | Slow (repr (a -> b))
 
@@ -45,15 +57,12 @@ instance SKI repr => SKI (Next repr a) where
     k = Fast k
     i = Fast i
 
-instance A repr => A (Next repr a) where
+instance Arith repr => Arith (Next repr a) where
     int x = Fast (int x)
     add = Fast add
 
 class NT l r where
     conv :: l t -> r t
-
-instance NT r (Next r a) where
-    conv = Fast
 
 instance NT l r => NT l (Next r a) where
     conv = Fast . conv
@@ -68,7 +77,7 @@ lam f = unNext $ f (conv (Slow i :: Next r a a))
 c :: SKI r => r ((a -> b -> c) -> b -> a -> c)
 c = lam (\abc -> lam (\b -> lam (\a -> app (app abc a) b)))
 
-double :: SKI r => A r => r (Int -> Int)
+double :: SKI r => Arith r => r (Int -> Int)
 double = lam (\i -> app (app add i) i)
 
 main :: IO ()
