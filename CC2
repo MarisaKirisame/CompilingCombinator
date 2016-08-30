@@ -40,7 +40,7 @@ instance SKI Eval where
 
 instance Arith Eval where
     int = Eval
-    add = undefined
+    add = Eval (+)
 
 data Next repr a b = Fast (repr b) | Slow (repr (a -> b))
 
