@@ -1,3 +1,4 @@
+
 {-# LANGUAGE
     MultiParamTypeClasses,
     RankNTypes,
@@ -37,16 +38,11 @@ instance SKI repr => SKI (Next repr a) where
     k = Fast k
     i = Fast i
 
-lam :: SKI r =>
- (forall rn. SKI rn =>
-  (forall t. r t -> rn t) -> rn a -> rn b) -> r (a -> b)
-lam f = unNext $ f Fast (Slow i)
+lam :: SKI r => (Next r a a -> Next r a b) -> r (a -> b)
+lam f = unNext $ f (Slow i)
 
 c :: SKI r => r ((a -> b -> c) -> b -> a -> c)
-c = lam (\withabc abc ->
-        lam (\withb b ->
-            lam (\witha a ->
-                app (app (witha $ withb abc) a) $ witha b)))
+c = lam (\abc -> lam (\b -> lam (\a -> app (app (Fast $ Fast abc) a) $ Fast b)))
 
 main :: IO ()
 main = putStrLn $ showTerm c
