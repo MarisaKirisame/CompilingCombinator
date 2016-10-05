@@ -70,6 +70,10 @@ instance NT l r => NT l (Next r a) where
 instance NT x x where
     conv = id
 
+--GHC is dumb, I tell ya
+instance NT (Next r a) (Next r a) where
+    conv = id
+    
 lam :: forall r a b. SKI r =>
  ((forall k. NT (Next r a) k => k a) -> (Next r a) b) -> r (a -> b)
 lam f = unNext $ f (conv (Slow i :: Next r a a))
